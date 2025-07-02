@@ -425,10 +425,7 @@ const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSeU9Eo5uP4-T1nJHxRyYkx
 const rsvpEntryId = "entry.2146395516";
 const nameEntryId = "entry.1329204581";
 
-let currentChoice = ""; // Store user's RSVP choice
-
-function openNameModal(choice) {
-  currentChoice = choice;
+function openNameModal() {
   document.getElementById("name-input").value = "";
   document.getElementById("name-error").textContent = "";
   document.getElementById("name-modal").style.display = "flex";
@@ -441,7 +438,11 @@ function closeNameModal() {
 function submitRSVP(choice, name, successMessage, iconClass, closeMenuId) {
   const formData = new FormData();
   formData.append(rsvpEntryId, choice);
-  formData.append(nameEntryId, name);
+
+  // Only append name if provided
+  if (name) {
+    formData.append(nameEntryId, name);
+  }
 
   fetch(formUrl, {
     method: 'POST',
@@ -454,16 +455,29 @@ function submitRSVP(choice, name, successMessage, iconClass, closeMenuId) {
 
     if (closeMenuId) closeMenu(closeMenuId);
     localStorage.setItem("rsvpStatus", choice);
-    localStorage.setItem("rsvpName", name);
+    if (name) localStorage.setItem("rsvpName", name);
+    else localStorage.removeItem("rsvpName");
     closeNameModal();
   }).catch(err => {
     console.error("RSVP submission failed:", err);
-    document.getElementById("name-error").textContent = "Gagal mengirim RSVP.";
+    if (name) {
+      document.getElementById("name-error").textContent = "Gagal mengirim RSVP.";
+    } else {
+      alert("Gagal mengirim RSVP.");
+    }
   });
-}
+};
 
-document.getElementById("btn-hadir").onclick = () => openNameModal("Hadir");
-document.getElementById("btn-tidak-hadir").onclick = () => openNameModal("Tidak Hadir");
+document.getElementById("btn-hadir").onclick = () => {
+  openNameModal();
+};
+
+document.getElementById("btn-tidak-hadir").onclick = () => {
+  const choice = "Tidak Hadir";
+  const successMsg = "Terima kasih, Ada rezeki kita bertemu.";
+  const icon = 'bx bxs-sad';
+  submitRSVP(choice, "", successMsg, icon, 'rsvp-menu');
+};
 
 document.getElementById("name-submit").onclick = () => {
   const name = document.getElementById("name-input").value.trim();
@@ -472,12 +486,11 @@ document.getElementById("name-submit").onclick = () => {
     return;
   }
 
-  const successMsg = currentChoice === "Hadir"
-    ? `Kami menantikan kedatangan Anda, ${name}!`
-    : `Terima kasih sudah mengabari, ${name}.`;
+  const choice = "Hadir";
+  const successMsg = `Terima Kasih . Kami menantikan kedatangan Anda, ${name}!`;
+  const icon = 'bx bxs-wink-smile';
 
-  const icon = currentChoice === "Hadir" ? 'bx bxs-wink-smile' : 'bx bxs-sad';
-  submitRSVP(currentChoice, name, successMsg, icon, 'rsvp-menu');
+  submitRSVP(choice, name, successMsg, icon, 'rsvp-menu');
 };
 
 document.getElementById("name-cancel").onclick = closeNameModal;
@@ -485,16 +498,23 @@ document.getElementById("name-cancel").onclick = closeNameModal;
 document.addEventListener("DOMContentLoaded", () => {
   const status = localStorage.getItem("rsvpStatus");
   const name = localStorage.getItem("rsvpName");
-  if (status && name) {
-    const msg = status === "Hadir"
-      ? `Anda (${name}) telah RSVP: Hadir`
-      : `Anda (${name}) telah RSVP: Tidak Hadir`;
-    const icon = status === "Hadir" ? 'bx bxs-wink-smile' : 'bx bxs-sad';
+
+  if (status) {
+    let msg = "";
+    let icon = "";
+    if (status === "Hadir" && name) {
+      msg = `Anda (${name}) telah RSVP: Hadir`;
+      icon = 'bx bxs-wink-smile';
+    } else if (status === "Tidak Hadir") {
+      msg = "Anda telah RSVP: Tidak Hadir";
+      icon = 'bx bxs-sad';
+    }
     const el = document.getElementById("success-menu");
     el.innerHTML = `<div class='success-message'><i class='${icon}'></i><p>${msg}</p></div>`;
     el.classList.add("open");
   }
 });
+
 
 
 
