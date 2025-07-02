@@ -421,56 +421,83 @@ document.getElementById("form-ucapan").addEventListener("submit", function (even
 /** =====================================================
  *  Handle Kehadiran Count
   ======================================================= */
-function incrementCount(endpoint, successMessage, iconClass, closeMenuId) {
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'action=increment',
-    })
-    .then(response => {
-        if (response.ok) {
-            return response.json();
-        } else {
-            throw new Error("Request failed");
-        }
-    })
-    .then(data => {
-        if (data.attend) {
-            // Display the success message
-            const successMenu = document.getElementById("success-menu");
-            successMenu.innerHTML = `<div class='success-message'><i class='${iconClass}'></i><p>${successMessage}</p></div>`;
-            successMenu.classList.add("open"); // Open the success menu
+const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSeU9Eo5uP4-T1nJHxRyYkxx9M-nVehVd5rB_vFqmwvQoJGV0g/formResponse";
+const rsvpEntryId = "entry.2146395516";
+const nameEntryId = "entry.1329204581";
 
-            // Optionally close other menu
-            if (closeMenuId) {
-                closeMenu(closeMenuId); // Close the specified menu
-            }
-        } else {
-            console.error("Increment count error:", data.error);
-            alert("Terjadi kesilapan: " + data.error);
-        }
-    })
-    .catch(error => {
-        console.error("AJAX error:", error);
-        alert("Error processing the request.");
-    });
+let currentChoice = ""; // Store user's RSVP choice
+
+function openNameModal(choice) {
+  currentChoice = choice;
+  document.getElementById("name-input").value = "";
+  document.getElementById("name-error").textContent = "";
+  document.getElementById("name-modal").style.display = "flex";
 }
 
-// Attach the click event to the "Hadir" and "Tidak Hadir" buttons
-document.getElementById("btn-hadir").onclick = function() {
-    incrementCount('count_hadir.php', "Kami menantikan kedatangan anda!", 'bx bxs-wink-smile', 'rsvp-menu'); // Success message and optionally close RSVP menu
+function closeNameModal() {
+  document.getElementById("name-modal").style.display = "none";
+}
+
+function submitRSVP(choice, name, successMessage, iconClass, closeMenuId) {
+  const formData = new FormData();
+  formData.append(rsvpEntryId, choice);
+  formData.append(nameEntryId, name);
+
+  fetch(formUrl, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: formData
+  }).then(() => {
+    const el = document.getElementById("success-menu");
+    el.innerHTML = `<div class='success-message'><i class='${iconClass}'></i><p>${successMessage}</p></div>`;
+    el.classList.add("open");
+
+    if (closeMenuId) closeMenu(closeMenuId);
+    localStorage.setItem("rsvpStatus", choice);
+    localStorage.setItem("rsvpName", name);
+    closeNameModal();
+  }).catch(err => {
+    console.error("RSVP submission failed:", err);
+    document.getElementById("name-error").textContent = "Gagal mengirim RSVP.";
+  });
+}
+
+document.getElementById("btn-hadir").onclick = () => openNameModal("Hadir");
+document.getElementById("btn-tidak-hadir").onclick = () => openNameModal("Tidak Hadir");
+
+document.getElementById("name-submit").onclick = () => {
+  const name = document.getElementById("name-input").value.trim();
+  if (!name) {
+    document.getElementById("name-error").textContent = "Nama diperlukan.";
+    return;
+  }
+
+  const successMsg = currentChoice === "Hadir"
+    ? `Kami menantikan kedatangan Anda, ${name}!`
+    : `Terima kasih sudah mengabari, ${name}.`;
+
+  const icon = currentChoice === "Hadir" ? 'bx bxs-wink-smile' : 'bx bxs-sad';
+  submitRSVP(currentChoice, name, successMsg, icon, 'rsvp-menu');
 };
 
-document.getElementById("btn-tidak-hadir").onclick = function() {
-    incrementCount( "Maaf, mungkin lain kali.", 'bx bxs-sad', 'rsvp-menu'); // Success message and optionally close RSVP menu
-};
+document.getElementById("name-cancel").onclick = closeNameModal;
+
+document.addEventListener("DOMContentLoaded", () => {
+  const status = localStorage.getItem("rsvpStatus");
+  const name = localStorage.getItem("rsvpName");
+  if (status && name) {
+    const msg = status === "Hadir"
+      ? `Anda (${name}) telah RSVP: Hadir`
+      : `Anda (${name}) telah RSVP: Tidak Hadir`;
+    const icon = status === "Hadir" ? 'bx bxs-wink-smile' : 'bx bxs-sad';
+    const el = document.getElementById("success-menu");
+    el.innerHTML = `<div class='success-message'><i class='${icon}'></i><p>${msg}</p></div>`;
+    el.classList.add("open");
+  }
+});
 
 
 
 
 
-/** =====================================================
- *  Image Carousel
-  ======================================================= */
+
